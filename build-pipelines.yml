@@ -30,7 +30,7 @@ stages:
             containerRegistry: $(dockerRegistryServicePrinciple)
             repository: $(acrRepository)
             command: 'buildAndPush'
-            Dockerfile: 'dockerfile'
+            Dockerfile: 'Dockerfile'
             buildContext: '$(System.DefaultWorkingDirectory)'
             tags: '$(Build.BuildId)'
           displayName: 'Build and Push Docker Image'
