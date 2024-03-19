@@ -1,0 +1,110 @@
+parameters:
+  - name: buildandpublish
+    displayName: Build and Publish
+    type: boolean
+    default: true
+  - name: destroyinfrastructure
+    displayName: Destroy Infrastructure
+    type: boolean
+    default: false
+
+# No triggers defined
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+    acrregistry: 'acrexperiment'
+    acrRepository: 'demo-api'
+    dockerRegistryServicePrinciple: 'dockerRegistryServicePrinciple'
+    azureSubscription: 'azureResourceManagerServiceConnection'
+
+stages:
+  - stage: create_api_docker_img 
+    condition: eq('${{ parameters.buildandpublish }}', true)
+    jobs:     
+      - job: docker_build
+        steps:         
+        - task: Docker@2
+          inputs:
+            containerRegistry: $(dockerRegistryServicePrinciple)
+            repository: $(acrRepository)
+            command: 'buildAndPush'
+            Dockerfile: 'dockerfile'
+            buildContext: '$(System.DefaultWorkingDirectory)'
+            tags: '$(Build.BuildId)'
+          displayName: 'Build and Push Docker Image'
+
+  - stage: install_and_running_pulumi 
+    condition: and(succeeded(), eq('${{ parameters.buildandpublish }}', true))
+    jobs:
+      - job: install_pulumi
+        steps:
+          - task: Npm@1
+            inputs:
+              command: install
+              workingDir: 'Infrastructure/'
+            displayName: 'Installing Npm'
+
+          - task: Pulumi@1
+            condition: succeeded()
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              command: 'preview'
+              loginArgs: '--cloud-url azblob://pulumideploystateapi'
+              cwd: 'Infrastructure/'
+              stack: 'dev'
+              createStack: true
+            displayName: 'Preview Pulumi - initialize to add in config'
+
+          - task: Pulumi@1
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              command: 'config'
+              args: 'set apiDockerImage $(acrRepository)'
+              cwd: 'Infrastructure/'
+              stack: 'dev'
+            displayName: 'Setting Docker ImageTag to current build'
+
+          - task: Pulumi@1
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              command: 'config'
+              args: 'set apiDockerImageTag $(Build.BuildId)'
+              cwd: 'Infrastructure/'
+              stack: 'dev'
+            displayName: 'Setting Docker ImageTag to current build'
+
+          - task: Pulumi@1
+            condition: succeeded()
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              command: 'up'
+              loginArgs: '--cloud-url azblob://pulumideploystateapi'
+              cwd: 'Infrastructure/'
+              stack: 'dev'
+              args: '--yes'
+            displayName: 'pulumi up'
+
+
+  - stage: destroyinfrastructure
+    condition: eq('${{ parameters.destroyinfrastructure }}', true)
+    jobs:
+      - job: destroyinfra
+        steps:
+          - task: Npm@1
+            inputs:
+              command: install
+              workingDir: 'infrastructure/'
+            displayName: 'Installing Npm'
+
+          - task: Pulumi@1
+            condition: succeeded()
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              command: 'destroy'
+              loginArgs: '--cloud-url azblob://pulumideploystateapi'
+              cwd: 'Infrastructure/'
+              stack: 'dev'
+              args: '--yes'
+            displayName: 'pulumi destroy'

@@ -1,0 +1,7 @@
+config:
+  azure-native:location: australiasoutheast
+  deployment-example:apiAcrRegistry: acrexperiment.azurecr.io
+  deployment-example:apiAcrRegistryPwd: xyz
+  deployment-example:apiAcrRegistryUser: acrexperiment
+  deployment-example:apiDockerImage: demo-api
+  deployment-example:apiDockerImageTag: "1"
