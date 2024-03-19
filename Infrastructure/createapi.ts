@@ -29,8 +29,7 @@ const servicePlan = new web.AppServicePlan(apiServicePlan, {
 }, { dependsOn: [ resourceGroup ]});
   
   
-const apiName = "apidemo";
-
+const apiName = "deploymentexampledemo";
 
 const api = new web.WebApp(apiName, {
       resourceGroupName: resourceGroup.name,
